@@ -17,7 +17,8 @@ var Filequeue = require('filequeue');
 
 var fq = new Filequeue(500);
 
-var config = 'chatbot.json';
+var workDict = path.resolve(__dirname);
+var config = workDict + '/chatbot.json';
 var errors = require('./errors.js')
 
 var sep = function (str) {
@@ -41,8 +42,40 @@ var composeUri = function (mode, botname, kind, filename) {
     return uri;
 }
 
+var usingBotkey = function(){
+  var ukey = nconf.get('user_key');
+  var akey = nconf.get('app_id');
+  var bname = nconf.get('botkey');
+  if(ukey && akey && bname){
+    return true;
+  }else{
+    if(bname){
+      return true;
+    }else{
+      return false;
+    }
+  }
+}
+
+var composeBotkeyUri = function (mode) {
+    var uri = {
+    	protocol: nconf.get('protocol'),
+    	hostname: nconf.get('hostname'),
+    	port: nconf.get('port')
+    };
+    var path = '';
+    path += sep(mode);
+    uri.pathname = path;
+    return uri;
+}
+
 var composeParams = function (params) {
     params.user_key = conf_user_key();
+    return params;
+}
+
+var composeBotkeyParams = function (params) {
+    params.botkey = conf_botkey();
     return params;
 }
 
@@ -95,8 +128,18 @@ var talkUri = function () {
     return url.format(uri);
 }
 
+var talkBotkeyUri = function () {
+    var uri = composeBotkeyUri('talk');
+    return url.format(uri);
+}
+
 var atalkUri = function () {
     var uri = composeUri('atalk', conf_botname(), '', '');
+    return url.format(uri);
+}
+
+var atalkBotkeyUri = function () {
+    var uri = composeBotkeyUri('atalk');
     return url.format(uri);
 }
 
@@ -450,18 +493,16 @@ var talkResp = function (error, response, body) {
 }
 
 var writeLogFile = (input, output) => {
-    var arr = [];
-    var note = {
-      input,
-      output
-    };
-    try {
-      var resLogString = fs.readFileSync('Response-log.json');
-      arr = JSON.parse(resLogString);
-    } catch(e) {
-    }
-    arr.push(note);
-    fs.writeFileSync('Response-log.json', JSON.stringify(arr));
+  var arr = "";
+  var note = `${input}\t${output}\n`;
+
+  try{
+    arr = fs.readFileSync('./response-log.tsv').toString();
+  }catch(e){
+    arr = "Input\tOuput\n";
+  }
+  arr += note;
+  fs.writeFileSync('./response-log.tsv', arr)
 };
 
 var updatedchatResp = function(input){
@@ -475,11 +516,12 @@ var updatedchatResp = function(input){
 	var jObj = JSON.parse(body);
 	if (jObj.status === 'ok') {
       if(jObj.client_name && jObj.client_name != nconf.get('client_name')) {
+        console.log('client_name:'+ jObj.client_name);
         nconf.set('client_name', jObj.client_name)
       }
 	    nconf.set('sessionid', jObj.sessionid);
 	    jObj.responses.forEach (function (entry) {
-	        console.log(conf_botname() + '> ' + entry);
+	        console.log('bot > ' + entry);
           writeLogFile(input,entry);
 	    });
 	}
@@ -508,6 +550,15 @@ var conf_user_key = function () {
     return user_key;
 }
 
+var conf_botkey = function () {
+    var botkey = nconf.get('botkey');
+    if (botkey === undefined) {
+	console.log('botkey required. use --botkey <botkey> or do init');
+	process.exit(1);
+    }
+    return botkey;
+}
+
 var conf_botname = function () {
     var botname = nconf.get('botname');
     if (botname === undefined) {
@@ -524,6 +575,7 @@ var options = {
     prefix: undefined,
     app_id: undefined,
     user_key: undefined,
+    botkey: undefined,
     botname: undefined,
     client_name: undefined,
     sessionid: undefined,
@@ -544,7 +596,7 @@ nconf.file({file: config});
 nconf.defaults(options);
 
 program
-    .version('1.1.2')
+    .version('1.3.1')
     .usage('command [options] <file ...>')
     .on('--help', function() {
       console.log('\n   General Commands:\n')
@@ -573,6 +625,7 @@ program
     .option('-X, --prefix <prefix>', 'prefix path of URL')
     .option('-i, --app_id <app_id>', 'app_id')
     .option('-k, --user_key <user_key>', 'user_key')
+    .option('-B, --botkey <botkey>', 'botkey')
     .option('-b, --botname <botname>', 'name of bot')
     .option('-c, --client_name <client_name>', 'name of client')
     .option('-s, --sessionid <sessionid>', 'session id of conversation')
@@ -586,37 +639,66 @@ program
     .parse(process.argv);
 
 for (var key in options) {
-    if (program[key])
-	nconf.set(key, program[key]);
+    if (program[key]){
+	     nconf.set(key, program[key]);
+    }
 }
+
+
+function processProps(propName,hostName){
+  prompt.get(propName, function (error, result) {
+    if (error) {
+        console.log("aborted.");
+        process.exit(2);
+    }
+    else {
+      var prop = {};
+      prop["hostname"] = hostName;
+      for (var key in result) {
+        if (result[key])
+            prop[key] = result[key];
+      }
+      fs.writeFileSync(config, JSON.stringify(prop, null, 4));
+  }
+  });
+}
+
 
 // Initialize
 if (program.args[0] === 'init') {
-    var props = [
-	{message: 'app_id? (required)', name: 'app_id',
-	    required: true, validator: /^[0-9a-z]+$/,
-	    warning: 'app_id must consist of alphanumeric, lowercase characters'},
-	{message: 'user_key? (required)', name: 'user_key',
-	    required: true, validator: /^[0-9a-z]+$/,
-	    warning: 'user_key must consist of alphanumeric, lowercase characters'},
-	{message: 'botname? (recommended)', name: 'botname'},
-	{message: 'hostname? (optional)', name: 'hostname'}
+    var hostProp = [
+      {message: 'hostname?(optional)', name: 'hostname'}
     ];
-    prompt.get(props, function (error, result) {
-	if (error) {
-	    console.log("aborted.");
-	    process.exit(2);
-	}
-	else {
-	    var prop = {};
-	    for (var key in result) {
-		if (result[key])
-		    prop[key] = result[key];
-	    }
-	    fs.writeFileSync(config, JSON.stringify(prop, null, 4));
-	}
+    var defaultHost = options["hostname"]
+    var configProps = [
+        {message: 'app_id? (required)', name: 'app_id',
+      	    required: true, validator: /^[0-9a-z]+$/,
+      	    warning: 'app_id must consist of alphanumeric, lowercase characters'},
+      	{message: 'user_key? (required)', name: 'user_key',
+      	    required: true, validator: /^[0-9a-z]+$/,
+      	    warning: 'user_key must consist of alphanumeric, lowercase characters'},
+      	{message: 'botname? (recommended)', name: 'botname'}
+
+    ];
+
+    prompt.get(hostProp, function (error, result) {
+    	if (error) {
+    	    console.log("aborted.");
+    	    process.exit(2);
+    	}
+    	else {
+          var productionHost = "api.pandorabots.com"
+          if(result["hostname"] == productionHost){
+            defaultHost = productionHost
+            configProps = [
+              {message: 'botkey? (required)', name: 'botkey', required: true}
+            ];
+          }
+          processProps(configProps,defaultHost);
+      }
     });
 }
+
 
 // List names of bots
 else if (program.args[0] === 'list') {
@@ -717,37 +799,59 @@ else if (program.args[0] === 'compile') {
 
 // Talk to a bot
 else if (program.args[0] === 'talk') {
-    if (program.args[1]) {
-	var param = {input: program.args.slice(1).join(' ')};
-	if (nconf.get('client_name')) param.client_name = nconf.get('client_name');
-	if (nconf.get('sessionid')) param.sessionid = nconf.get('sessionid');
-	if (nconf.get('extra')) param.extra = true;
-	if (nconf.get('reset')) param.reset = true;
-	if (nconf.get('trace')) param.trace = true;
-	if (nconf.get('reload')) param.reload = true;
-	if (nconf.get('recent')) param.recent = true;
-	request.post({url: talkUri(), form: composeParams(param)}, talkResp);
-    }
-    else
-	console.log('usage: talk <text...>');
+  if (program.args[1]) {
+      var param = {input: program.args.slice(1).join(' ')};
+      if (nconf.get('client_name')) param.client_name = nconf.get('client_name');
+      if (nconf.get('sessionid')) param.sessionid = nconf.get('sessionid');
+      if (nconf.get('extra')) param.extra = true;
+      if (nconf.get('reset')) param.reset = true;
+      if (nconf.get('trace')) param.trace = true;
+      if (nconf.get('reload')) param.reload = true;
+      if (nconf.get('recent')) param.recent = true;
+      if(fs.existsSync(workDict+'/chatbot.json')){
+        if(usingBotkey()){
+          //  *@usingBotkey()-> true if botkey exists or all three user_key, app_id, bot_key exists
+          //  *@usingBotkey()-> false if botkey does not exists
+          request.post({url: talkBotkeyUri(), form: composeBotkeyParams(param)}, talkResp);
+        }else{
+            request.post({url: talkUri(), form: composeParams(param)}, talkResp);
+        }
+      }else{
+        console.log('configurations required. use pb init');
+        process.exit(1);
+      }
+  }else
+      console.log('usage: talk <text...>');
 }
 
 // Atalk to a bot
 else if (program.args[0] === 'atalk') {
     if (program.args[1]) {
-	var param = {input: program.args.slice(1).join(' ')};
-	if (nconf.get('client_name')) param.client_name = nconf.get('client_name');
-	if (nconf.get('sessionid')) param.sessionid = nconf.get('sessionid');
-	if (nconf.get('recent')) param.recent = true;
-	request.post({url: atalkUri(), form: composeParams(param)}, talkResp);
+      var param = {input: program.args.slice(1).join(' ')};
+      if (nconf.get('client_name')) param.client_name = nconf.get('client_name');
+      if (nconf.get('sessionid')) param.sessionid = nconf.get('sessionid');
+      if (nconf.get('recent')) param.recent = true;
+      if(fs.existsSync(workDict+'/chatbot.json')){
+        if(usingBotkey()){
+          //  *@returns 1 if botkey exists or all three user_key, app_id, bot_key exists
+          //  *@return 0 if botkey does not exists
+          request.post({url: atalkBotkeyUri(), form: composeBotkeyParams(param)}, talkResp);
+        }else{
+          request.post({url: atalkUri(), form: composeParams(param)}, talkResp);
+        }
+      }else{
+        console.log('configurations required. use pb init');
+        process.exit(1);
+      }
     }
     else
-	console.log('usage: atalk <text...>');
+      console.log('usage: atalk <text...>');
+
 }
 
 // Chat mode
 else if (program.args[0] === 'chat') {
-    console.log('Entering chat with ' + conf_botname());
+    console.log('Entering chat mode');
     console.log('Press Control-C at any time to exit');
     var rl = readline.createInterface({
         input: process.stdin,
@@ -761,13 +865,24 @@ else if (program.args[0] === 'chat') {
             param.client_name = nconf.get('client_name');
         if (nconf.get('sessionid'))
             param.sessionid = nconf.get('sessionid');
-        request.post({url: talkUri(), form: composeParams(param)}, updatedchatResp(cmd));
-    });
+        if(fs.existsSync(workDict+'/chatbot.json')){
+          if(usingBotkey()){
+              //  *@usingBotkey() returns true if botkey exists or all three user_key, app_id, bot_key exists
+              //  *@usingBotkey() return false if botkey does not exists
+              request.post({url: talkBotkeyUri(), form: composeBotkeyParams(param)}, updatedChatResp(cmd));
+            }else{
+              request.post({url: talkUri(), form: composeParams(param)}, updatedChatResp(cmd));
+            }
+          }else{
+            console.log('configurations required. use pb init');
+            process.exit(1);
+          }
+        });
 }
 
 // Achat mode
 else if (program.args[0] === 'achat') {
-    console.log('Entering achat with ' + conf_botname());
+    console.log('Entering achat mode');
     console.log('Press Control-C at any time to exit');
     var rl = readline.createInterface({
         input: process.stdin,
@@ -781,7 +896,19 @@ else if (program.args[0] === 'achat') {
             param.client_name = nconf.get('client_name');
         if (nconf.get('sessionid'))
             param.sessionid = nconf.get('sessionid');
-        request.post({url: atalkUri(), form: composeParams(param)}, updatedchatResp(cmd));
+        if(fs.existsSync(workDict+'/chatbot.json')){
+          if(usingBotkey()){
+            //  *@usingBotkey() returns true if botkey exists or all three user_key, app_id, bot_key exists
+            //  *@usingBotkey() return false if botkey does not exists
+            request.post({url: atalkBotkeyUri(), form: composeBotkeyParams(param)}, updatedChatResp(cmd));
+          }else{
+            request.post({url: atalkUri(), form: composeParams(param)}, updatedChatResp(cmd));
+          }
+        }else{
+          console.log('configurations required. use pb init');
+          process.exit(1);
+        }
+
     });
 }
 

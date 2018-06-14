@@ -22,10 +22,10 @@ The CLI introduces the concept of the bot configuration file, `chatbot.json`. Th
 
 ```js
 {
+  hostname: ********,
   app_id: ********,
   user_key: *******,
-  botname: ********,
-  hostname: ********
+  botname: ********
 }
 ```
 
@@ -39,13 +39,25 @@ You can create this file manually, or, use the `init` command to be guided throu
 
 ```bash
 $ pb init
+hostname? (optional) ******
 app_id? (required) *********
 user_key? (required) ********
 botname? (recommended) ********
-hostname? (optional) ******
 ```
 
 The hostname field is optional, and will default to `aiaas.pandorabots.com`.
+
+#### botkey feature for api.pandorabots.com users
+
+v1.3.1 introduces new talk, atalk, chat and achat functionalities through `public botkey` for premium users i.e. users with the 
+`hostname: api.pandorabots.com `
+
+You can add this manually in `chatbot.json` , or, use the `init` command to be guided through the process:
+
+```bash
+hostname: api.pandorabots.com,
+botkey: ********
+```
 
 ## Run tests
 
