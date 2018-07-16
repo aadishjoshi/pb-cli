@@ -49,7 +49,7 @@ The hostname field is optional, and will default to `aiaas.pandorabots.com`.
 
 #### botkey feature for api.pandorabots.com users
 
-v1.3.1 introduces new talk, atalk, chat and achat functionalities through `public botkey` for premium users i.e. users with the 
+v1.3.1 introduces new talk, atalk, chat and achat functionalities through `public botkey` for premium users i.e. users with the
 `hostname: api.pandorabots.com `
 
 You can add this manually in `chatbot.json` , or, use the `init` command to be guided through the process:

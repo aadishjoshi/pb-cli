@@ -17,8 +17,7 @@ var Filequeue = require('filequeue');
 
 var fq = new Filequeue(500);
 
-var workDict = path.resolve(__dirname);
-var config = workDict + '/chatbot.json';
+var config = 'chatbot.json';
 var errors = require('./errors.js')
 
 var sep = function (str) {
@@ -505,7 +504,7 @@ var writeLogFile = (input, output) => {
   fs.writeFileSync('./response-log.tsv', arr)
 };
 
-var updatedchatResp = function(input){
+var updatedChatResp = function(input){
   var logString = null;
   return function(error, response, body) {
     if (!response)
@@ -808,7 +807,6 @@ else if (program.args[0] === 'talk') {
       if (nconf.get('trace')) param.trace = true;
       if (nconf.get('reload')) param.reload = true;
       if (nconf.get('recent')) param.recent = true;
-      if(fs.existsSync(workDict+'/chatbot.json')){
         if(usingBotkey()){
           //  *@usingBotkey()-> true if botkey exists or all three user_key, app_id, bot_key exists
           //  *@usingBotkey()-> false if botkey does not exists
@@ -816,10 +814,6 @@ else if (program.args[0] === 'talk') {
         }else{
             request.post({url: talkUri(), form: composeParams(param)}, talkResp);
         }
-      }else{
-        console.log('configurations required. use pb init');
-        process.exit(1);
-      }
   }else
       console.log('usage: talk <text...>');
 }
@@ -831,7 +825,6 @@ else if (program.args[0] === 'atalk') {
       if (nconf.get('client_name')) param.client_name = nconf.get('client_name');
       if (nconf.get('sessionid')) param.sessionid = nconf.get('sessionid');
       if (nconf.get('recent')) param.recent = true;
-      if(fs.existsSync(workDict+'/chatbot.json')){
         if(usingBotkey()){
           //  *@returns 1 if botkey exists or all three user_key, app_id, bot_key exists
           //  *@return 0 if botkey does not exists
@@ -839,10 +832,6 @@ else if (program.args[0] === 'atalk') {
         }else{
           request.post({url: atalkUri(), form: composeParams(param)}, talkResp);
         }
-      }else{
-        console.log('configurations required. use pb init');
-        process.exit(1);
-      }
     }
     else
       console.log('usage: atalk <text...>');
@@ -865,7 +854,6 @@ else if (program.args[0] === 'chat') {
             param.client_name = nconf.get('client_name');
         if (nconf.get('sessionid'))
             param.sessionid = nconf.get('sessionid');
-        if(fs.existsSync(workDict+'/chatbot.json')){
           if(usingBotkey()){
               //  *@usingBotkey() returns true if botkey exists or all three user_key, app_id, bot_key exists
               //  *@usingBotkey() return false if botkey does not exists
@@ -873,10 +861,6 @@ else if (program.args[0] === 'chat') {
             }else{
               request.post({url: talkUri(), form: composeParams(param)}, updatedChatResp(cmd));
             }
-          }else{
-            console.log('configurations required. use pb init');
-            process.exit(1);
-          }
         });
 }
 
@@ -896,7 +880,6 @@ else if (program.args[0] === 'achat') {
             param.client_name = nconf.get('client_name');
         if (nconf.get('sessionid'))
             param.sessionid = nconf.get('sessionid');
-        if(fs.existsSync(workDict+'/chatbot.json')){
           if(usingBotkey()){
             //  *@usingBotkey() returns true if botkey exists or all three user_key, app_id, bot_key exists
             //  *@usingBotkey() return false if botkey does not exists
@@ -904,11 +887,6 @@ else if (program.args[0] === 'achat') {
           }else{
             request.post({url: atalkUri(), form: composeParams(param)}, updatedChatResp(cmd));
           }
-        }else{
-          console.log('configurations required. use pb init');
-          process.exit(1);
-        }
-
     });
 }
 
