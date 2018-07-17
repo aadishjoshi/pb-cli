@@ -339,29 +339,15 @@ var listBotResp = function (error, response, body) {
     else {
     	var jObj = JSON.parse(body);
     	if (response.statusCode === 200) {
-          jObj.forEach (function (entry) {
-        		console.log(entry.botname);
-    	    });
+      (nconf.get('extra'))
+        ? console.log(jObj)
+        : jObj.forEach (function (entry) { console.log(entry.botname) })
     	}
     	else
     	    console.log(jObj.message);
     }
 }
 
-var listExtraBotResp = function (error, response, body) {
-    if (!response)
-    	console.log(error);
-    else if (response.statusCode >= 400)
-      errors.bots(response.statusCode)
-    else {
-    	var jObj = JSON.parse(body);
-    	if (response.statusCode === 200) {
-          console.log(jObj);
-    	}
-    	else
-    	    console.log(jObj.message);
-    }
-}
 
 
 var fileList = function (jObj) {
@@ -382,24 +368,14 @@ var listFileResp = function (error, response, body) {
 	    errors.bots(response.statusCode)
     else {
     	var jObj = JSON.parse(body);
-    	if (response.statusCode === 200)
-    	    fileList(jObj).forEach (function (file) { console.log(file); });
+    	if (response.statusCode === 200){
+      (nconf.get('extra'))
+        ? console.log(jObj)
+        : fileList(jObj).forEach (function (file) { console.log(file); });
+      }
     	else
     	    console.log(jObj.message);
     }
-}
-
-var listExtraFileResp = function (error, response, body) {
-    if (!response)
-	    console.log(error);
-    else if (response.statusCode >= 400)
-	    errors.bots(response.statusCode)
-    else {
-    	var jObj = JSON.parse(body);
-    	if (response.statusCode === 200)
-    	    console.log(jObj);
-    }
-
 }
 
 var downloadBotFile = function (fileName, outputPath) {
@@ -701,12 +677,7 @@ if (program.args[0] === 'init') {
 
 // List names of bots
 else if (program.args[0] === 'list') {
-  if (nconf.get('extra')){
-      request.get(listUri(), listExtraBotResp);
-  }else{
     request.get(listUri(), listBotResp);
-  }
-
 }
 
 // Create a bot
@@ -771,11 +742,7 @@ else if (program.args[0] === 'download') {
 
 // List files of bot
 else if (program.args[0] === 'get' && !program.all) {
-  if(nconf.get('extra')){
-      request.get(botUri(conf_botname()), listExtraFileResp);
-  }else{
     request.get(botUri(conf_botname()), listFileResp);
-  }
 }
 
 // Retrieve all files as ZIP
