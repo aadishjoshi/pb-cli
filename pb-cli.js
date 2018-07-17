@@ -520,7 +520,7 @@ var updatedChatResp = function(input){
       }
 	    nconf.set('sessionid', jObj.sessionid);
 	    jObj.responses.forEach (function (entry) {
-	        console.log('bot > ' + entry);
+	        console.log(`${nconf.get('botname') || 'bot'}> ${entry}`);
           writeLogFile(input,entry);
 	    });
 	}
@@ -840,7 +840,7 @@ else if (program.args[0] === 'atalk') {
 
 // Chat mode
 else if (program.args[0] === 'chat') {
-    console.log('Entering chat mode');
+    console.log(`Entering chat mode with ${nconf.get('botname') || 'bot'}`);
     console.log('Press Control-C at any time to exit');
     var rl = readline.createInterface({
         input: process.stdin,
@@ -866,7 +866,7 @@ else if (program.args[0] === 'chat') {
 
 // Achat mode
 else if (program.args[0] === 'achat') {
-    console.log('Entering achat mode');
+    console.log(`Entering achat mode with ${nconf.get('botname') || 'bot'}`);
     console.log('Press Control-C at any time to exit');
     var rl = readline.createInterface({
         input: process.stdin,

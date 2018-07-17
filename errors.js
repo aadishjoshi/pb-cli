@@ -1,5 +1,5 @@
 const invalidBotname = 'Invalid botname.'
-const invalidCredentials = 'Invalid app_id or user_key or botkey.'
+const invalidCredentials = 'Invalid app_id, user_key, or botkey.'
 
 const errorCodes = {
   bots: {
